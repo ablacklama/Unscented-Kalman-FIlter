@@ -23,6 +23,11 @@ UKF::UKF() {
 
   // initial covariance matrix
   P_ = MatrixXd(5, 5);
+  P_ << 1, 0, 0, 0, 0,
+	  0, 1, 0, 0, 0,
+	  0, 0, 1, 0, 0,
+	  0, 0, 0, 1, 0,
+	  0, 0, 0, 0, 1;
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
   std_a_ = 30;
@@ -46,7 +51,19 @@ UKF::UKF() {
   std_radrd_ = 0.3;
 
   // Parameters above this line are scaffolding, do not modify
-  
+
+  ///* Weights of sigma points
+  VectorXd weights_;
+
+  ///* State dimension
+  int n_x_ = 5;
+
+  ///* Augmented state dimension
+  int n_aug_ = 7;
+
+  ///* Sigma point spreading parameter
+  double lambda_ = 3 - n_aug_;
+
   /**
   TODO:
 
