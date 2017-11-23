@@ -53,7 +53,13 @@ UKF::UKF() {
   // Parameters above this line are scaffolding, do not modify
 
   ///* Weights of sigma points
-  VectorXd weights_;
+  VectorXd weights_ = VectorXd(2*n_aug_+1);
+  double weight_0 = lambda_ / (lambda_ + n_aug_);
+  weights_(0) = weight_0;
+  for (int i = 1; i<2 * n_aug_ + 1; i++) {
+	  double weight = 0.5 / (n_aug_ + lambda_);
+	  weights_(i) = weight;
+  }
 
   ///* State dimension
   int n_x_ = 5;
@@ -63,6 +69,9 @@ UKF::UKF() {
 
   ///* Sigma point spreading parameter
   double lambda_ = 3 - n_aug_;
+
+  ///* initialization tracker
+  is_initialized_ = false;
 
   /**
   TODO:
@@ -80,12 +89,40 @@ UKF::~UKF() {}
  * either radar or laser.
  */
 void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
-  /**
-  TODO:
+	/**
+	TODO:
 
-  Complete this function! Make sure you switch between lidar and radar
-  measurements.
-  */
+	Complete this function! Make sure you switch between lidar and radar
+	measurements.
+	*/
+	if (!is_initialized_) {
+		if (meas_package.sensor_type_ == MeasurementPackage::RADAR)
+		{
+			double rho = meas_package.raw_measurements_[0]; // range
+			double phi = meas_package.raw_measurements_[1]; // bearing
+			double rho_dot = meas_package.raw_measurements_[2]; // velocity of rho
+			double px = rho * cos(phi);
+			double py = rho * sin(phi);
+			double vx = rho_dot * cos(phi);
+			double vy = rho_dot * sin(phi);
+			double v = sqrt(vx * vx + vy * vy);
+			x_ << px, py, v, 0, 0;
+		}
+		else if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
+			x_ << meas_package.raw_measurements_[0], meas_package.raw_measurements_[1];
+		}
+		float eps = 0.000001;
+		if (fabs(x_(0)) < eps && fabs(x_(1)) < eps) {
+			x_(0) = eps;
+			x_(1) = eps;
+		}
+		previous_timestamp_ = meas_package.timestamp_;
+		is_initialized_ = true;
+		return;
+	}
+
+	float dt = (meas_package.timestamp_ - previous_timestamp_) / 1000000.0;
+	previous_timestamp_ = meas_package.timestamp_;
 }
 
 /**
