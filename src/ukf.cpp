@@ -2,6 +2,7 @@
 #include "Eigen/Dense"
 #include <iostream>
 
+
 using namespace std;
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
@@ -23,11 +24,7 @@ UKF::UKF() {
 
   // initial covariance matrix
   P_ = MatrixXd(5, 5);
-  P_ << 1, 0, 0, 0, 0,
-	  0, 1, 0, 0, 0,
-	  0, 0, 1, 0, 0,
-	  0, 0, 0, 1, 0,
-	  0, 0, 0, 0, 1;
+  P_ = MatrixXd::Identity(5, 5);
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
   std_a_ = 1.0; //started as 30
@@ -51,27 +48,26 @@ UKF::UKF() {
   std_radrd_ = 0.3;
 
   // Parameters above this line are scaffolding, do not modify
-
-  ///* Weights of sigma points
-  VectorXd weights_ = VectorXd(2*n_aug_+1);
-  weights_.fill(0.5 / (n_aug_ + lambda_));
-  weights_(0) = lambda_ / (lambda_ + n_aug_);
   
-
   ///* State dimension
-  int n_x_ = 5;
+  n_x_ = 5;
 
   ///* Augmented state dimension
-  int n_aug_ = 7;
+  n_aug_ = 7;
 
   ///* Sigma point spreading parameter
-  double lambda_ = 3 - n_aug_;
+  lambda_ = 3 - n_aug_;
 
   ///* initialization tracker
   is_initialized_ = false;
 
   ///* predicted sigma points as columns
   Xsig_pred_ = MatrixXd(n_x_, 2 * n_aug_ + 1);
+
+  ///* Weights of sigma points
+  weights_ = VectorXd(2 * n_aug_ + 1);
+  weights_.fill(0.5 / (n_aug_ + lambda_));
+  weights_(0) = lambda_ / (lambda_ + n_aug_);
 
   ///* Noise matrices
   R_radar = MatrixXd(3, 3);
@@ -123,6 +119,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 
 	float dt = (meas_package.timestamp_ - previous_timestamp_) / 1000000.0;
 	previous_timestamp_ = meas_package.timestamp_;
+	Prediction(dt);
 
 	if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
 		UpdateLidar(meas_package);
@@ -132,8 +129,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 	}
 }
 void UKF::NormAng(double *ang) {
-	while (*ang > M_PI) *ang -= 2. * M_PI;
-	while (*ang < -M_PI) *ang += 2. * M_PI;
+	*ang = atan2(sin(*ang), cos(*ang));
 }
 
 /**
@@ -147,7 +143,7 @@ void UKF::Prediction(double delta_t) {
 	VectorXd x_aug = VectorXd(7);
 
 	//create augmented state covariance
-	MatrixXd P_aug = MatrixXd(7, 7);
+	MatrixXd P_aug = MatrixXd::Zero(7, 7);
 
 	//create sigma point matrix
 	MatrixXd Xsig_aug = MatrixXd(n_aug_, 2 * n_aug_ + 1);
@@ -173,13 +169,13 @@ void UKF::Prediction(double delta_t) {
 	for (int i = 0; i< 2 * n_aug_ + 1; i++)
 	{
 		//extract values for better readability
-		double p_x = Xsig_aug(0, i);
-		double p_y = Xsig_aug(1, i);
-		double v = Xsig_aug(2, i);
-		double yaw = Xsig_aug(3, i);
-		double yawd = Xsig_aug(4, i);
-		double nu_a = Xsig_aug(5, i);
-		double nu_yawdd = Xsig_aug(6, i);
+		const double p_x = Xsig_aug(0, i);
+		const double p_y = Xsig_aug(1, i);
+		const double v = Xsig_aug(2, i);
+		const double yaw = Xsig_aug(3, i);
+		const double yawd = Xsig_aug(4, i);
+		const double nu_a = Xsig_aug(5, i);
+		const double nu_yawdd = Xsig_aug(6, i);
 
 		//predicted state values
 		double px_p, py_p;
@@ -254,17 +250,17 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
 
 	for (int i = 0; i < 2*n_aug_+1; i++) {
 
-		double p_x = Xsig_pred_(0, i);
-		double p_y = Xsig_pred_(1, i);
-		double v = Xsig_pred_(2, i);
+		const double p_x = Xsig_pred_(0, i);
+		const double p_y = Xsig_pred_(1, i);
+		const double v = Xsig_pred_(2, i);
 
-		double yaw = Xsig_pred_(3, i);
-		double v1 = cos(yaw)*v;
-		double v2 = sin(yaw)*v;
+		const double yaw = Xsig_pred_(3, i);
+		const double v1 = cos(yaw)*v;
+		const double v2 = sin(yaw)*v;
 
 		Zsig(0, i) = sqrt(p_x*p_x + p_y*p_y);  
 	
-		Zsig(1, i) = atan2(p_y, p_x);    
+		Zsig(1, i) = atan2(p_y, max(p_x,0.0001));    
 		
 		Zsig(2, i) = (p_x*v1 + p_y*v2) / Zsig(0, i);  
 		
