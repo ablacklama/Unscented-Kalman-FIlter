@@ -61,6 +61,9 @@ UKF::UKF() {
 	///* initialization tracker
 	is_initialized_ = false;
 
+	/// number of sig points
+	n_sig_ = 2*n_aug_ +1;
+
 	///* predicted sigma points as columns
 	Xsig_pred_ = MatrixXd(n_x_, n_sig_);
 
@@ -83,8 +86,7 @@ UKF::UKF() {
 	NIS_radar_ = 0.0;
 	///* the current NIS for laser
 	NIS_laser_ = 0.0;
-	/// number of sig points
-	n_sig_ = n_sig_;
+	
 
 }
   UKF::~UKF() {}
